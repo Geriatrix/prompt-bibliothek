@@ -119,6 +119,8 @@ h1 {
   background: var(--akzent); border-color: var(--akzent);
   color: var(--auf-akzent); font-weight: 500;
 }
+.wahlen { display: flex; gap: 8px; }
+.nur-mobil { display: none; }
 .chip .n { font-variant-numeric: tabular-nums; opacity: .65; font-size: 11.5px; }
 .reihe-titel {
   font-size: 11px; text-transform: uppercase; letter-spacing: .09em;
@@ -215,6 +217,13 @@ pre.text .ph { color: var(--platzhalter); font-weight: 500; }
   main { padding: 20px 16px 60px; }
   .raster { grid-template-columns: 1fr; }
   .chip { min-height: 34px; }
+  /* Am Handy fraßen die Chip-Reihen im festen Kopf den halben Bildschirm:
+     dort stattdessen zwei Auswahllisten in einer Zeile. */
+  .filter { display: none; }
+  .wahlen { flex: 1 1 100%; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 6px; }
+  .wahlen select { min-width: 0; width: 100%; padding: 8px 9px; font-size: 13px; }
+  .nur-mobil { display: block; }
+  .nur-mobil.aktiv { border-color: var(--akzent); color: var(--akzent); font-weight: 500; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -226,12 +235,16 @@ pre.text .ph { color: var(--platzhalter); font-weight: 500; }
       <h1>Prompt-Bibliothek</h1>
       <span class="zaehler" id="zaehler"></span>
       <input type="search" class="suchfeld" id="suche" placeholder="Titel, Text, Schlagwort oder Quelle suchen&#8230;" aria-label="Prompts durchsuchen">
-      <select class="sortfeld" id="sortierung" aria-label="Sortierung">
-        <option value="kategorie">Nach Kategorie</option>
-        <option value="bewertung">Beste zuerst</option>
-        <option value="neu">Neueste zuerst</option>
-        <option value="alt">&#196;lteste zuerst</option>
-      </select>
+      <div class="wahlen">
+        <select class="sortfeld nur-mobil" id="wahl-kat" aria-label="Thema"></select>
+        <select class="sortfeld nur-mobil" id="wahl-modell" aria-label="Modell"></select>
+        <select class="sortfeld" id="sortierung" aria-label="Sortierung">
+          <option value="kategorie">Nach Kategorie</option>
+          <option value="bewertung">Beste zuerst</option>
+          <option value="neu">Neueste zuerst</option>
+          <option value="alt">&#196;lteste zuerst</option>
+        </select>
+      </div>
     </div>
     <div class="filter" id="filter-kat"></div>
     <div class="filter" id="filter-modell"></div>
@@ -282,6 +295,18 @@ function baueFilter() {
     '<span class="reihe-titel">Modell</span>' +
     chip('', 'Alle', PROMPTS.length, modellFilter === '', 'modell') +
     modelle.map(m => chip(m, m, zMod[m], modellFilter === m, 'modell')).join('');
+
+  const option = (wert, text, anzahl, aktiv) =>
+    '<option value="' + esc(wert) + '"' + (aktiv ? ' selected' : '') + '>' +
+    esc(text) + ' (' + anzahl + ')</option>';
+  const wahlKat = document.getElementById('wahl-kat');
+  wahlKat.innerHTML = option('', 'Alle Themen', PROMPTS.length, katFilter === '') +
+    KATEGORIEN.filter(k => zKat[k]).map(k => option(k, k, zKat[k], katFilter === k)).join('');
+  wahlKat.classList.toggle('aktiv', katFilter !== '');
+  const wahlModell = document.getElementById('wahl-modell');
+  wahlModell.innerHTML = option('', 'Alle Modelle', PROMPTS.length, modellFilter === '') +
+    modelle.map(m => option(m, m, zMod[m], modellFilter === m)).join('');
+  wahlModell.classList.toggle('aktiv', modellFilter !== '');
 }
 
 function kurzDatum(wert) {
@@ -446,6 +471,12 @@ document.addEventListener('click', ev => {
 
 document.getElementById('suche').addEventListener('input', zeichne);
 document.getElementById('sortierung').addEventListener('change', zeichne);
+document.getElementById('wahl-kat').addEventListener('change', ev => {
+  katFilter = ev.target.value; baueFilter(); zeichne();
+});
+document.getElementById('wahl-modell').addEventListener('change', ev => {
+  modellFilter = ev.target.value; baueFilter(); zeichne();
+});
 document.addEventListener('keydown', ev => {
   if (ev.key !== 'Escape') return;
   const lupe = document.getElementById('lupe');
